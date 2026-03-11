@@ -43,6 +43,7 @@ class MainWindow(QMainWindow):
 
         self._race_state: RaceState | None = None
         self._tick_count = 0
+        self._race_start_ms = 0
 
         # Per-driver card and telemetry cache
         self._telemetry_cards: dict[str, TelemetryPanel] = {}
@@ -174,6 +175,7 @@ class MainWindow(QMainWindow):
         except Exception:
             race_start_ms = int(t_min.total_seconds() * 1000)
 
+        self._race_start_ms = race_start_ms
         self._scrubber.setRange(race_start_ms, int(t_max.total_seconds() * 1000))
         self._scrubber.setValue(race_start_ms)
 
@@ -299,7 +301,8 @@ class MainWindow(QMainWindow):
         total_secs = value / 1000.0
         t = pd.Timedelta(seconds=total_secs)
 
-        hours, rem = divmod(int(total_secs), 3600)
+        elapsed_secs = int((value - self._race_start_ms) / 1000.0)
+        hours, rem = divmod(elapsed_secs, 3600)
         mins, secs = divmod(rem, 60)
         self._time_label.setText(f"{hours:02}:{mins:02}:{secs:02}")
 

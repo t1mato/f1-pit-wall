@@ -23,9 +23,9 @@ from PySide6.QtCore import Qt, Signal
 from models.lap import LapData
 from views.track_map import DRIVER_COLORS
 
-_DRS_ON_STYLE  = "background:#00C853; color:#000; font-size:12px; font-weight:bold; border-radius:4px; padding:3px 12px;"
-_DRS_OFF_STYLE = "background:#E8002D; color:#fff; font-size:12px; font-weight:bold; border-radius:4px; padding:3px 12px;"
-_DRS_UNK_STYLE = "background:#333355; color:#888; font-size:12px; font-weight:bold; border-radius:4px; padding:3px 12px;"
+_DRS_ON_STYLE  = "background:#00C853; color:#000; font-size:11px; font-weight:bold; border-radius:4px; padding:2px 10px;"
+_DRS_OFF_STYLE = "background:#E8002D; color:#fff; font-size:11px; font-weight:bold; border-radius:4px; padding:2px 10px;"
+_DRS_UNK_STYLE = "background:#333355; color:#888; font-size:11px; font-weight:bold; border-radius:4px; padding:2px 10px;"
 
 
 class TelemetryPanel(QWidget):
@@ -41,8 +41,8 @@ class TelemetryPanel(QWidget):
         self.setStyleSheet("background-color: #12122a; border-radius: 6px;")
 
         root = QVBoxLayout(self)
-        root.setContentsMargins(8, 6, 8, 8)
-        root.setSpacing(8)
+        root.setContentsMargins(8, 4, 8, 6)
+        root.setSpacing(4)
 
         root.addWidget(self._build_header())
         root.addWidget(self._build_readouts())
@@ -129,7 +129,7 @@ class TelemetryPanel(QWidget):
         bar.setValue(0)
         bar.setTextVisible(True)
         bar.setFormat("%v%")
-        bar.setFixedHeight(18)
+        bar.setFixedHeight(14)
         bar.setStyleSheet(f"""
             QProgressBar {{
                 border: 1px solid #333355;
@@ -153,7 +153,7 @@ class TelemetryPanel(QWidget):
     def _make_big_label(text: str, color: str) -> QLabel:
         lbl = QLabel(text)
         lbl.setStyleSheet(
-            f"color: {color}; font-size: 40px; font-weight: bold; font-family: monospace;"
+            f"color: {color}; font-size: 28px; font-weight: bold; font-family: monospace;"
         )
         lbl.setAlignment(Qt.AlignCenter)
         return lbl

@@ -40,7 +40,6 @@ class TrackDetailsWidget(QWidget):
         layout.addWidget(self._total_lap)
         layout.addWidget(self._make_divider())
         layout.addWidget(self._cur_lap)
-        layout.addStretch()
 
     # ── Public API ────────────────────────────────────────────────────────────
 

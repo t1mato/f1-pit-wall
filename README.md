@@ -2,6 +2,8 @@
 
 A desktop app for replaying Formula 1 race telemetry frame-by-frame. It fetches session data via the FastF1 API, renders live car positions on an accurate track map, and displays per-driver telemetry (speed, throttle, brake, DRS, gear) as you scrub through the race timeline.
 
+![F1 Telemetry Visualizer](docs/screenshot.png)
+
 ---
 
 ## Tech Stack
