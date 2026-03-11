@@ -11,6 +11,8 @@ FastF1 identifies sessions by:
         (Practice 1-3, Qualifying, Sprint, Sprint Shootout, Race)
 """
 
+from __future__ import annotations
+
 import fastf1
 from pathlib import Path
 

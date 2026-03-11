@@ -19,6 +19,8 @@ Signal flow:
   show_error(msg)     ◀────────────    load_failed.emit(msg)
 """
 
+from __future__ import annotations
+
 import fastf1.core
 from PySide6.QtCore import QThread, Signal
 

@@ -15,6 +15,8 @@ Layout:
                   [ ◀──────●───────────────▶ ]   scrubber
 """
 
+from __future__ import annotations
+
 import pandas as pd
 import fastf1.core
 from PySide6.QtWidgets import (

@@ -15,10 +15,21 @@ Data sources (all from session.load()):
   session.results   — final race results (used for driver metadata)
 """
 
+from __future__ import annotations
+
+import numpy as np
 import pandas as pd
 import fastf1.core
 
 from models.lap import LapData
+
+# Try to import the compiled C++ extension.
+# If it hasn't been built yet, fall back to the pure-Python lerp.
+try:
+    import f1_processor as _f1_cpp
+    _USE_CPP = True
+except ImportError:
+    _USE_CPP = False
 
 
 class RaceState:
@@ -38,6 +49,18 @@ class RaceState:
             session.results.set_index("DriverNumber")["Abbreviation"]
             .to_dict()
         )
+
+        # Pre-convert position DataFrames to NumPy arrays for the C++ hot path.
+        # Done once at load time so the 20 FPS loop has zero pandas overhead.
+        # Each value is a dict with keys "times_s", "xs", "ys" as float64 arrays.
+        self._pos_arrays: dict[str, dict] = {} # type hint tells us the keys will be strings (driver numbers) and values will be inner dictionaries holding data
+        if _USE_CPP:
+            for num, df in self._pos_data.items(): 
+                self._pos_arrays[num] = {
+                    "times_s": (df["Time"].dt.total_seconds()).to_numpy(dtype=np.float64),
+                    "xs":       df["X"].to_numpy(dtype=np.float64),
+                    "ys":       df["Y"].to_numpy(dtype=np.float64),
+                }
 
     # ── Time range ─────────────────────────────────────────────────────────────
 
@@ -60,8 +83,8 @@ class RaceState:
         """
         Return each car's interpolated (X, Y) position at time_delta.
 
-        Uses binary search (searchsorted) to find the surrounding samples,
-        then linearly interpolates between them for smooth 20 FPS movement.
+        Uses the C++ f1_processor extension when available (compiled binary
+        search + lerp), otherwise falls back to the pure-Python implementation.
 
         Args:
             time_delta: Time since session start (from the scrubber).
@@ -70,43 +93,44 @@ class RaceState:
             dict mapping driver abbreviation → (x, y) in metres.
         """
         result = {}
+        time_s = time_delta.total_seconds()
 
-        for driver_num, df in self._pos_data.items():
-            abbr = self._num_to_abbr.get(driver_num)
-            if not abbr:
-                continue
+        if _USE_CPP:
+            # ── C++ fast path ─────────────────────────────────────────────
+            for driver_num, arrs in self._pos_arrays.items():
+                abbr = self._num_to_abbr.get(driver_num)
+                if not abbr:
+                    continue
+                x, y = _f1_cpp.lerp_position(
+                    time_s,
+                    arrs["times_s"],
+                    arrs["xs"],
+                    arrs["ys"],
+                )
+                result[abbr] = (x, y)
+        else:
+            # ── Pure-Python fallback ──────────────────────────────────────
+            for driver_num, df in self._pos_data.items():
+                abbr = self._num_to_abbr.get(driver_num)
+                if not abbr:
+                    continue
 
-            times = df["Time"]
-            # Binary search — O(log n) vs idxmin()'s O(n)
-            idx = times.searchsorted(time_delta)
+                times = df["Time"]
+                idx = times.searchsorted(time_delta)
 
-            # Edge cases: before first sample or after last sample
-            if idx <= 0:
-                result[abbr] = (float(df["X"].iloc[0]), float(df["Y"].iloc[0]))
-                continue
-            if idx >= len(df):
-                result[abbr] = (float(df["X"].iloc[-1]), float(df["Y"].iloc[-1]))
-                continue
+                if idx <= 0:
+                    result[abbr] = (float(df["X"].iloc[0]), float(df["Y"].iloc[0]))
+                    continue
+                if idx >= len(df):
+                    result[abbr] = (float(df["X"].iloc[-1]), float(df["Y"].iloc[-1]))
+                    continue
 
-            # Surrounding samples
-            t0, t1 = times.iloc[idx - 1], times.iloc[idx]
-            x0, y0 = float(df["X"].iloc[idx - 1]), float(df["Y"].iloc[idx - 1])
-            x1, y1 = float(df["X"].iloc[idx]),     float(df["Y"].iloc[idx])
+                t0, t1 = times.iloc[idx - 1], times.iloc[idx]
+                x0, y0 = float(df["X"].iloc[idx - 1]), float(df["Y"].iloc[idx - 1])
+                x1, y1 = float(df["X"].iloc[idx]),     float(df["Y"].iloc[idx])
 
-            # TODO(human): compute alpha and interpolate x, y.
-            # alpha is a float 0.0–1.0 representing how far time_delta is
-            # between t0 and t1:
-            #     alpha = (time_delta - t0) / (t1 - t0)
-            # Then apply the lerp formula for both axes:
-            #     x = x0 + alpha * (x1 - x0)
-            #     y = y0 + alpha * (y1 - y0)
-            # Finally: result[abbr] = (x, y)
-            
-            alpha = (time_delta - t0) / (t1 - t0)
-            x = x0 + alpha * (x1 - x0)
-            y = y0 + alpha * (y1 - y0)
-
-            result[abbr] = (x, y)
+                alpha = (time_delta - t0) / (t1 - t0)
+                result[abbr] = (x0 + alpha * (x1 - x0), y0 + alpha * (y1 - y0))
 
         return result
 
